@@ -3,5 +3,5 @@ azure-mgmt-compute==30.5.0
 azure-mgmt-core==1.4.0
 azure-mgmt-network==25.3.0
 azure-mgmt-subscription==3.1.1
-psutil==5.9.7
+psutil==5.9.8
 simplejson==3.19.2

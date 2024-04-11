@@ -12,8 +12,8 @@ to be installed and the user to have appropriate Azure CLI credentials.
 On Azure; create a Resource Group, add a VM and the Bastion service in the
 created Resource Group.
 
-Note that Bastion Host SKU must be Standard and Native Client
-(`enable_tunneling` if using the SDK) must be enabled.
+> Note that the Bastion Host SKU must be Standard and `Native Client`
+> (`enable_tunneling` if using the SDK) must be enabled, see [Configure Bastion for native client connections](https://learn.microsoft.com/en-us/azure/bastion/native-client).
 
 Update the script configuration file.
 

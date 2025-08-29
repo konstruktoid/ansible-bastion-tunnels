@@ -5,8 +5,9 @@ It allows users to generate an inventory of Azure hosts and their connection
 details, as well as list the tunnel processes for the current user.
 """
 
+from __future__ import annotations
+
 import argparse
-import contextlib
 import json
 import shutil
 import subprocess
@@ -59,7 +60,21 @@ if az_command is None:
     sys.exit(1)
 
 
-def list_tunnels() -> str:
+def check_extension() -> bool:
+    """Check if the Azure CLI bastion extension is installed."""
+    command = [az_command, "extension", "list"]
+    try:
+        output = subprocess.check_output(command, text=True)
+        extensions = json.loads(output)
+        for ext in extensions:
+            if ext["name"] == "bastion":
+                return True
+        return False
+    except subprocess.CalledProcessError:
+        return False
+
+
+def list_tunnels() -> None:
     """List the tunnel processes for the current user."""
     for proc in psutil.process_iter():
         tunnel = [
@@ -75,12 +90,15 @@ def list_tunnels() -> str:
 
 def generate_inventory(config: dict) -> dict:
     """Generate the inventory."""
+
+    group_name = list(config.keys())[0]
+
     inventory = {}
     inventory["bastion_tunnels"] = []
     inventory["_meta"] = {}
     inventory["_meta"]["hostvars"] = {}
 
-    for host, value in config["bastion_tunnels"]["hosts"].items():
+    for host, value in config[group_name]["hosts"].items():
         if bastion_name(value["resource_group"]) is None:
             print(
                 f"A valid bastion host was not found in resource group {value['resource_group']}.",
@@ -115,23 +133,14 @@ def generate_inventory(config: dict) -> dict:
                 command,
                 stderr=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
-                shell=False,  # noqa: S603
+                shell=False,
             )
-
-            try:
-                host_address = value["ansible_host"]
-            except KeyError:
-                host_address = "127.0.0.1"
-
-            with contextlib.suppress(KeyError):
-                inventory["_meta"]["hostvars"][host]["ansible_user"] = value[
-                    "ansible_user"
-                ]
 
             inventory["bastion_tunnels"].append(host)
             inventory["_meta"]["hostvars"][host] = {}
-            inventory["_meta"]["hostvars"][host]["ansible_host"] = host_address
-            inventory["_meta"]["hostvars"][host]["ansible_port"] = value["ansible_port"]
+
+            for var, var_value in value.items():
+                inventory["_meta"]["hostvars"][host][var] = var_value
 
     return inventory
 
@@ -148,7 +157,7 @@ def subscription_id() -> str:
     return subscription_id
 
 
-def resource_id(resource_group: str, vm_name: str) -> str:
+def resource_id(resource_group: str, vm_name: str) -> str | None:
     """Get the resource ID of a virtual machine."""
     client = ComputeManagementClient(
         credential=AzureCliCredential(),
@@ -167,7 +176,7 @@ def resource_id(resource_group: str, vm_name: str) -> str:
     return resource["id"]
 
 
-def bastion_name(resource_group: str) -> str:
+def bastion_name(resource_group: str) -> str | None:
     """Get the name of the Azure Bastion host."""
     bastion = None
 
@@ -190,6 +199,10 @@ def bastion_name(resource_group: str) -> str:
 
 
 if not args.list_tunnels:
+    if check_extension() is False:
+        print("The Azure CLI bastion extension is not installed.")
+        sys.exit(1)
+
     credential = AzureCliCredential()
     try:
         credential.get_token("https://management.azure.com/.default")

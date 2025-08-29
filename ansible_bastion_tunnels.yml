@@ -3,9 +3,11 @@ bastion_tunnels:
   hosts:
     server01:
       ansible_host: 127.0.0.1
-      ansible_port: 63933
+      ansible_port: 63931
       ansible_user: azureuser
       resource_group: AnsibleHosts
     server02:
+      ansible_host: 127.0.0.1
       ansible_port: 63932
+      ansible_user: azureuser
       resource_group: AnsibleHosts

@@ -1,0 +1,7 @@
+---
+- name: Azure Bastion Test Playbook
+  hosts: bastion_tunnels
+  tasks:
+    - name: Return host information
+      ansible.builtin.debug:
+        msg: "Hostname is {{ ansible_facts.fqdn }} with ip {{ ansible_facts.default_ipv4.address }}"

@@ -7,7 +7,8 @@ It allows users to generate an inventory of Azure hosts and their connection
 details, as well as list the tunnel processes for the current user.
 
 The script requires the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/)
-to be installed and the user to have appropriate Azure CLI credentials.
+with the `bastion` extension to be installed and the user to have appropriate
+Azure CLI credentials.
 
 On Azure; create a Resource Group, add a VM and the Bastion service in the
 created Resource Group.
@@ -15,7 +16,11 @@ created Resource Group.
 > Note that the Bastion Host SKU must be Standard and `Native Client`
 > (`enable_tunneling` if using the SDK) must be enabled, see [Configure Bastion for native client connections](https://learn.microsoft.com/en-us/azure/bastion/native-client).
 
-Update the script configuration file.
+> Note that you manually have to stop the tunnel processes when they are no longer needed,
+> see [https://github.com/Azure/azure-cli-extensions/issues/7450](https://github.com/Azure/azure-cli-extensions/issues/7450).
+> The script lists the tunnel processes for the current user with the `--list-tunnels` option.
+
+## Usage
 
 ```
 bastion_tunnels_inventory.py [-h] [-c CONFIG_FILE] [-l] [-t]
@@ -47,45 +52,84 @@ bastion_tunnels:
   hosts:
     server01:
       ansible_host: 127.0.0.1
-      ansible_port: 63933
+      ansible_port: 63931
       ansible_user: azureuser
       resource_group: AnsibleHosts
     server02:
+      ansible_host: 127.0.0.1
       ansible_port: 63932
+      ansible_user: azureuser
       resource_group: AnsibleHosts
 ```
 
-## Example
+## Examples
 
 ```
-$ ansible-inventory -i bastion_tunnels_inventory.py --list --yaml
-all:
-  children:
-    bastion_tunnels:
-      hosts:
-        server01:
-          ansible_host: 127.0.0.1
-          ansible_port: 63933
-          ansible_user: azureuser
-        server02:
-          ansible_host: 127.0.0.1
-          ansible_port: 63932
+$ ansible-inventory -i bastion_tunnels_inventory.py --list
+{
+    "_meta": {
+        "hostvars": {
+            "server01": {
+                "ansible_host": "127.0.0.1",
+                "ansible_port": 63931,
+                "ansible_user": "azureuser",
+                "resource_group": "AnsibleHosts"
+            },
+            "server02": {
+                "ansible_host": "127.0.0.1",
+                "ansible_port": 63932,
+                "ansible_user": "azureuser",
+                "resource_group": "AnsibleHosts"
+            }
+        },
+        "profile": "inventory_legacy"
+    },
+    "all": {
+        "children": [
+            "ungrouped",
+            "bastion_tunnels"
+        ]
+    },
+    "bastion_tunnels": {
+        "hosts": [
+            "server01",
+            "server02"
+        ]
+    }
+}
 ```
 
 ```sh
 $ ansible -i bastion_tunnels_inventory.py -m ping all
 server01 | SUCCESS => {
     "ansible_facts": {
-        "discovered_interpreter_python": "/usr/bin/python3"
+        "discovered_interpreter_python": "/usr/bin/python3.10"
     },
     "changed": false,
     "ping": "pong"
 }
 server02 | SUCCESS => {
     "ansible_facts": {
-        "discovered_interpreter_python": "/usr/bin/python3"
+        "discovered_interpreter_python": "/usr/bin/python3.10"
     },
     "changed": false,
     "ping": "pong"
+}
+```
+
+```sh
+$ ansible-playbook -i bastion_tunnels_inventory.py test.yml
+PLAY [Azure Bastion Test Playbook] *********************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [server01]
+ok: [server02]
+
+TASK [Return host information] *************************************************
+ok: [server01] => {
+    "msg": "Hostname is server01.internal.cloudapp.net with ip 10.1.1.4"
+}
+ok: [server02] => {
+    "msg": "Hostname is server02.internal.cloudapp.net with ip 10.1.1.5"
 }
 ```

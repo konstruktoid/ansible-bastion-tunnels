@@ -39,6 +39,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "-k",
+    "--kill-tunnels",
+    help="Kill all active tunnel processes",
+    action="store_true",
+)
+
+parser.add_argument(
     "-l",
     "--list",
     help="Print the inventory",
@@ -74,8 +81,10 @@ def check_extension() -> bool:
         return False
 
 
-def list_tunnels() -> None:
+def list_tunnels() -> list[str]:
     """List the tunnel processes for the current user."""
+    tunnel_processes = []
+
     for proc in psutil.process_iter():
         tunnel = [
             "network",
@@ -84,19 +93,30 @@ def list_tunnels() -> None:
             "--resource-group",
             "--target-resource-id",
         ]
+
         if all(cmdline in proc.cmdline() for cmdline in tunnel):
-            print(f"Pid: {proc.pid} Process: {proc.cmdline()}")
+            tunnel_processes.append(
+                json.dumps(
+                    {
+                        "pid": proc.pid,
+                        "cmdline": proc.cmdline(),
+                        "status": proc.status(),
+                    }
+                )
+            )
+
+    return tunnel_processes
 
 
 def generate_inventory(config: dict) -> dict:
     """Generate the inventory."""
-
     group_name = list(config.keys())[0]
 
     inventory = {}
-    inventory["bastion_tunnels"] = []
+    inventory[group_name] = []
     inventory["_meta"] = {}
     inventory["_meta"]["hostvars"] = {}
+    inventory[group_name] = {"hosts": []}
 
     for host, value in config[group_name]["hosts"].items():
         if bastion_name(value["resource_group"]) is None:
@@ -136,7 +156,8 @@ def generate_inventory(config: dict) -> dict:
                 shell=False,
             )
 
-            inventory["bastion_tunnels"].append(host)
+            inventory[group_name]["hosts"].append(host)
+
             inventory["_meta"]["hostvars"][host] = {}
 
             for var, var_value in value.items():
@@ -198,7 +219,7 @@ def bastion_name(resource_group: str) -> str | None:
     return bastion
 
 
-if not args.list_tunnels:
+if not args.list_tunnels and not args.kill_tunnels:
     if check_extension() is False:
         print("The Azure CLI bastion extension is not installed.")
         sys.exit(1)
@@ -226,4 +247,21 @@ if not args.list_tunnels:
     print(json_output)
 
 if args.list_tunnels:
-    list_tunnels()
+    if len(list_tunnels()) > 0:
+        for t in range(len(list_tunnels())):
+            print(list_tunnels()[t])
+    else:
+        print("No active tunnels found.")
+
+if args.kill_tunnels:
+    tunnel_pids = []
+    for t in range(len(list_tunnels())):
+        pid = tunnel_pids.append(json.loads(list_tunnels()[t])["pid"])
+
+    if len(tunnel_pids) > 0:
+        for tunnel_pid in tunnel_pids:
+            process = psutil.Process(tunnel_pid)
+            process.terminate()
+            print(f"Terminated tunnel process with PID {tunnel_pid}.")
+    else:
+        print("No active tunnels found.")

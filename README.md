@@ -10,8 +10,8 @@ The script requires the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/
 with the `bastion` extension to be installed and the user to have appropriate
 Azure CLI credentials.
 
-On Azure; create a Resource Group, add a VM and the Bastion service in the
-created Resource Group.
+On Azure; create a Resource Group, add the Bastion service and a VM in the
+created Resource Group and ensure the VM is connected to the Bastion network.
 
 > Note that the Bastion Host SKU must be Standard and `Native Client`
 > (`enable_tunneling` if using the SDK) must be enabled, see [Configure Bastion for native client connections](https://learn.microsoft.com/en-us/azure/bastion/native-client).
@@ -23,14 +23,15 @@ created Resource Group.
 ## Usage
 
 ```
-bastion_tunnels_inventory.py [-h] [-c CONFIG_FILE] [-l] [-t]
+usage: bastion_tunnels_inventory.py [-h] [-c CONFIG_FILE] [-k] [-l] [-t]
 
 Ansible connections through Microsoft Azure Bastion tunnels.
 
 options:
   -h, --help            show this help message and exit
-  -c CONFIG_FILE, --config-file CONFIG_FILE
+  -c, --config-file CONFIG_FILE
                         Config file
+  -k, --kill-tunnels    Kill all active tunnel processes
   -l, --list            Print the inventory
   -t, --list-tunnels    List tunnel processes
 ```
